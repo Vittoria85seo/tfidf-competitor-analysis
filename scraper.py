@@ -111,6 +111,7 @@ def _scrape_firecrawl(url):
     if html_content:
         soup = BeautifulSoup(html_content, "html.parser")
         parsed = _parse_soup(soup)
+        parsed["_raw_html"] = html_content.encode("utf-8")
         if meta_title:
             parsed["meta_title"] = meta_title
         if meta_desc:
@@ -153,8 +154,11 @@ def _scrape_static(url):
     session.headers.update(HEADERS_BROWSER)
     resp = session.get(url, timeout=20, allow_redirects=True)
     resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
-    return _parse_soup(soup)
+    raw_html = resp.text
+    soup = BeautifulSoup(raw_html, "html.parser")
+    result = _parse_soup(soup)
+    result["_raw_html"] = raw_html.encode("utf-8")
+    return result
 
 
 def _scrape_googlebot(url):
@@ -162,8 +166,11 @@ def _scrape_googlebot(url):
     session.headers.update(HEADERS_GOOGLEBOT)
     resp = session.get(url, timeout=20, allow_redirects=True)
     resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
-    return _parse_soup(soup)
+    raw_html = resp.text
+    soup = BeautifulSoup(raw_html, "html.parser")
+    result = _parse_soup(soup)
+    result["_raw_html"] = raw_html.encode("utf-8")
+    return result
 
 
 def _scrape_playwright(url):
@@ -179,10 +186,32 @@ def _scrape_playwright(url):
         )
         page = ctx.new_page()
         page.goto(url, timeout=30000, wait_until="networkidle")
+        page.wait_for_timeout(2000)
         content = page.content()
         browser.close()
     soup = BeautifulSoup(content, "html.parser")
-    return _parse_soup(soup)
+    result = _parse_soup(soup)
+    result["_raw_html"] = content.encode("utf-8")
+    return result
+
+
+def render_html(url):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(
+            user_agent=HEADERS["User-Agent"],
+            locale="en-US",
+            extra_http_headers={
+                "Accept-Language": HEADERS["Accept-Language"],
+            },
+        )
+        page = ctx.new_page()
+        page.goto(url, timeout=30000, wait_until="networkidle")
+        page.wait_for_timeout(2000)
+        rendered = page.content()
+        browser.close()
+    return rendered
 
 
 def parse_html_bytes(html_bytes, url="manual"):

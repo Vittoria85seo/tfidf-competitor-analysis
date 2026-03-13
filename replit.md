@@ -8,6 +8,7 @@ A Streamlit web application that compares on-page content of your URL against up
 - `scraper.py` — URL fetching (`scrape_url`) with static + Playwright fallback, and HTML file parsing (`parse_html_bytes`)
 - `processor.py` — TF-IDF computation (`compute_tfidf`) using scikit-learn, with unigram/bigram/trigram support
 - `translator.py` — Language detection (`has_non_english`) via langdetect and translation (`translate_terms`) via deep-translator (Google Translate, free)
+- `product_detector.py` — Product listing detection from HTML: sibling-based and global class-based element grouping, heading/class/img-alt name extraction, JSON-LD structured data fallback, blog/guide page classification, nav element filtering
 - `REQUIREMENTS.md` — Functional requirements document
 
 ## Tech Stack
@@ -21,7 +22,7 @@ A Streamlit web application that compares on-page content of your URL against up
 - **Charts**: Plotly
 
 ## Key Features
-- Two input modes: URL scraping or HTML file upload
+- Three input modes: URL scraping, paste text, or HTML file upload
 - Smart scraping with Playwright fallback for JS-heavy sites
 - TF-IDF analysis with unigrams, bigrams, trigrams
 - Configurable competitor presence threshold and custom stopwords
@@ -30,6 +31,7 @@ A Streamlit web application that compares on-page content of your URL against up
 - Bar chart comparison (top 20 terms)
 - CSV export
 - Auto language detection and translation
+- Product Listings tab (HTML upload mode): detects product grid patterns, heading-based listings, blog/guide pages, unrendered templates
 
 ## Integrations
 - **GitHub**: Connected via Replit connector (user: Vittoria85seo)
