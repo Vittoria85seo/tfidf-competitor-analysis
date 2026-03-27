@@ -882,17 +882,22 @@ if "df" in st.session_state:
             with st.spinner("Detecting product listings…"):
                 pl_results = analyze_multiple_pages(pages_with_html)
 
-            def _short_page_label(label):
+            def _short_url(full_url):
                 from urllib.parse import urlparse
-                for prefix in ("YOUR PAGE: ", "Competitor "):
-                    if label.startswith(prefix):
-                        tag = prefix.strip().rstrip(":")
-                        rest = label[len(prefix):]
-                        if rest.startswith("http"):
-                            p = urlparse(rest)
-                            path = p.path.rstrip("/")
-                            short = p.netloc + (path if len(path) <= 30 else "/…" + path[-28:])
-                            return f"{tag}: {short}"
+                if not full_url or not full_url.startswith("http"):
+                    return full_url
+                p = urlparse(full_url)
+                domain = p.netloc.replace("www.", "")
+                path = p.path.rstrip("/")
+                if len(path) > 35:
+                    path = "/…" + path[-30:]
+                return domain + path
+
+            def _short_page_label(label):
+                import re
+                m = re.match(r"(YOUR PAGE|Competitor \d+): (https?://\S+)", label)
+                if m:
+                    return f"{m.group(1)}: {_short_url(m.group(2))}"
                 return label
 
             overview_rows = []
@@ -912,7 +917,17 @@ if "df" in st.session_state:
                     "Structure": r.get("structure", ""),
                 })
             ov_df = pd.DataFrame(overview_rows)
-            st.dataframe(ov_df, width='stretch', hide_index=True, height=min(420, len(ov_df) * 35 + 60))
+
+            def _color_product_row(row):
+                status = str(row.get("Page Type", ""))
+                if "products" in status:
+                    return ["background-color: #d4edda"] * len(row)
+                elif status == "Not detected":
+                    return ["background-color: #ffe0e0"] * len(row)
+                return [""] * len(row)
+
+            styled_ov = ov_df.style.apply(_color_product_row, axis=1)
+            st.dataframe(styled_ov, width='stretch', hide_index=True, height=min(420, len(ov_df) * 35 + 60))
 
             for r in pl_results:
                 if r.get("product_count", 0) > 0 and r.get("products"):
