@@ -419,7 +419,14 @@ if mode == "Scrape from URLs":
         for idx, url in enumerate(all_urls):
             label = "Your page" if idx == 0 else f"Competitor {idx}"
             status.text(f"Fetching {label}: {url}")
-            scraped.append(scrape_url(url, use_firecrawl=use_firecrawl))
+            try:
+                scraped.append(scrape_url(url, use_firecrawl=use_firecrawl))
+            except Exception as e:
+                scraped.append({
+                    "meta_title": "", "meta_description": "", "headings": "",
+                    "body": "", "combined": "", "word_count": 0,
+                    "url": url, "error": str(e), "method": "none",
+                })
             progress.progress((idx + 1) / len(all_urls))
             if use_firecrawl and idx < len(all_urls) - 1:
                 time.sleep(2)

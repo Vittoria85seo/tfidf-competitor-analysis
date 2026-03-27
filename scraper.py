@@ -89,7 +89,7 @@ def _scrape_firecrawl(url):
     from firecrawl import FirecrawlApp
     app = FirecrawlApp(api_key=api_key)
 
-    doc = app.scrape(url, formats=["html", "markdown"], wait_for=15000, headers=HEADERS_GOOGLEBOT)
+    doc = app.scrape(url, formats=["html", "markdown"], wait_for=15000, timeout=30000, headers=HEADERS_GOOGLEBOT)
 
     final_url = ""
     if doc.metadata:
@@ -179,7 +179,10 @@ def _scrape_googlebot(url):
 
 
 def _scrape_playwright(url):
-    from playwright.sync_api import sync_playwright
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError("Playwright not installed")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         ctx = browser.new_context(
