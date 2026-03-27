@@ -1,0 +1,68 @@
+# ============================================================
+# PRODUCT LISTING DETECTOR — product_detector.py
+# ============================================================
+
+$(cat product_detector.py)
+
+
+# ============================================================
+# OUTPUT TABLE CODE — from app.py (Product Listings tab)
+# ============================================================
+# This is the Streamlit code that displays the results with
+# Page, Page Type (blog/template/N products), Structure (li+h2, div+h3, etc.)
+# and expandable product details per page.
+
+# --- Structure Overview Table ---
+# Columns: Page | Page Type | Structure
+# Structure shows the container+name pattern like "li+h2", "div+h3", "article+span"
+
+# Code:
+
+    # overview_rows = []
+    # for r in pl_results:
+    #     page_type = r.get("page_type", "unknown")
+    #     if page_type == "blog":
+    #         status = "Blog / Guide"
+    #     elif page_type == "template":
+    #         status = "Unrendered template"
+    #     elif r["product_count"] > 0:
+    #         status = f"{r['product_count']} products"
+    #     else:
+    #         status = "Not detected"
+    #     overview_rows.append({
+    #         "Page": r["label"],
+    #         "Page Type": status,
+    #         "Structure": r.get("structure", ""),
+    #     })
+    # st.dataframe(pd.DataFrame(overview_rows))
+
+# --- Per-page product details (expandable) ---
+# Columns: Product Name | Price | Image Alt Text | URL
+
+    # for r in pl_results:
+    #     with st.expander(f"{r['label']} — {r['product_count']} products in {r['container_tag']}"):
+    #         prod_rows = []
+    #         for p in r["products"]:
+    #             prod_rows.append({
+    #                 "Product Name": p["name"],
+    #                 "Price": p["price"],
+    #                 "Image Alt Text": p["img_alt"],
+    #                 "URL": p["url"],
+    #             })
+    #         st.dataframe(pd.DataFrame(prod_rows))
+
+# --- CSV export (all products across all pages) ---
+# Columns: Page | Container Tag | Product Name | Price | Image Alt Text | URL
+
+    # all_products = []
+    # for r in pl_results:
+    #     for p in r["products"]:
+    #         all_products.append({
+    #             "Page": r["label"],
+    #             "Container Tag": r["container_tag"],
+    #             "Product Name": p["name"],
+    #             "Price": p["price"],
+    #             "Image Alt Text": p["img_alt"],
+    #             "URL": p["url"],
+    #         })
+    # csv_data = pd.DataFrame(all_products).to_csv(index=False)

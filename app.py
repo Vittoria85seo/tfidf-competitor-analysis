@@ -873,34 +873,55 @@ if "df" in st.session_state:
             st.warning("No HTML data available for product detection. This feature requires scraping from URLs or pasting HTML source.")
         else:
             with st.spinner("Detecting product listings…"):
-                results = analyze_multiple_pages(pages_with_html)
+                pl_results = analyze_multiple_pages(pages_with_html)
 
-            for r in results:
+            overview_rows = []
+            for r in pl_results:
                 page_type = r.get("page_type", "unknown")
-                label = r["label"]
-                products = r.get("products", [])
-                count = r.get("product_count", 0)
-
                 if page_type == "blog":
-                    st.info(f"**{label}** — Blog / Guide page (no product listing detected)")
+                    status = "Blog / Guide"
                 elif page_type == "template":
-                    st.warning(f"**{label}** — Unrendered template (JS-rendered page)")
-                elif page_type == "product_listing" and products:
-                    with st.expander(f"**{label}** — {count} products detected", expanded=False):
-                        st.markdown(f"**Container:** `{r.get('container_tag', '')}` class=`{r.get('container_class', '')}`")
-                        if r.get("structure"):
-                            st.markdown(f"**Structure:** `{r['structure']}`")
-                        if r.get("name_tag"):
-                            st.markdown(f"**Name tag:** `{r['name_tag']}` class=`{r.get('name_class', '')}`")
-
-                        prod_data = []
-                        for p in products:
-                            prod_data.append({
-                                "Product Name": p.get("name", ""),
-                                "Price": p.get("price", ""),
-                                "URL": p.get("url", ""),
-                            })
-                        if prod_data:
-                            st.dataframe(pd.DataFrame(prod_data), width='stretch', height=min(400, len(prod_data) * 35 + 60))
+                    status = "Unrendered template"
+                elif r["product_count"] > 0:
+                    status = f"{r['product_count']} products"
                 else:
-                    st.warning(f"**{label}** — No product listing detected")
+                    status = "Not detected"
+                overview_rows.append({
+                    "Page": r["label"],
+                    "Page Type": status,
+                    "Structure": r.get("structure", ""),
+                })
+            st.dataframe(pd.DataFrame(overview_rows), width='stretch')
+
+            for r in pl_results:
+                if r.get("product_count", 0) > 0 and r.get("products"):
+                    with st.expander(f"{r['label']} — {r['product_count']} products in {r.get('container_tag', '')}"):
+                        prod_rows = []
+                        for p in r["products"]:
+                            prod_rows.append({
+                                "Product Name": p["name"],
+                                "Price": p["price"],
+                                "Image Alt Text": p["img_alt"],
+                                "URL": p["url"],
+                            })
+                        st.dataframe(pd.DataFrame(prod_rows), width='stretch', height=min(400, len(prod_rows) * 35 + 60))
+
+            all_products = []
+            for r in pl_results:
+                for p in r.get("products", []):
+                    all_products.append({
+                        "Page": r["label"],
+                        "Container Tag": r.get("container_tag", ""),
+                        "Product Name": p["name"],
+                        "Price": p["price"],
+                        "Image Alt Text": p["img_alt"],
+                        "URL": p["url"],
+                    })
+            if all_products:
+                csv_data = pd.DataFrame(all_products).to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download Product Listings CSV",
+                    data=csv_data,
+                    file_name="product_listings.csv",
+                    mime="text/csv",
+                )
