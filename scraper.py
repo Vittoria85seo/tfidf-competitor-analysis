@@ -253,28 +253,22 @@ def scrape_url(url, use_firecrawl=True):
         try:
             result = _scrape_firecrawl(url)
             result = {**result, "url": url, "error": None, "method": "firecrawl"}
-            if result["word_count"] > 0:
+            if result["word_count"] >= MIN_WORDS:
                 return result
+            if result["word_count"] > 0:
+                attempts.append(result)
         except Exception as e:
             errors.append(f"Firecrawl: {e}")
 
     try:
         result = _scrape_googlebot(url)
         result = {**result, "url": url, "error": None, "method": "googlebot"}
-        if result["word_count"] > 0:
+        if result["word_count"] >= MIN_WORDS:
             return result
-        attempts.append(result)
+        if result["word_count"] > 0:
+            attempts.append(result)
     except Exception as e:
         errors.append(f"Googlebot: {e}")
-
-    try:
-        result = _scrape_static(url)
-        result = {**result, "url": url, "error": None, "method": "static"}
-        if result["word_count"] > 0:
-            return result
-        attempts.append(result)
-    except Exception as e:
-        errors.append(f"Static: {e}")
 
     best = _best_result(attempts)
     if best:
