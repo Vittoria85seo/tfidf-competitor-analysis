@@ -90,18 +90,7 @@ def _scrape_firecrawl(url):
     from firecrawl import FirecrawlApp
     app = FirecrawlApp(api_key=api_key)
 
-    last_err = None
-    doc = None
-    for attempt in range(3):
-        try:
-            doc = app.scrape(url, formats=["html", "markdown"], wait_for=5000, timeout=20000, headers=HEADERS_GOOGLEBOT)
-            break
-        except Exception as e:
-            last_err = e
-            if attempt < 2:
-                time.sleep(5 * (attempt + 1))
-    if doc is None:
-        raise RuntimeError(f"Firecrawl failed after 3 attempts: {last_err}")
+    doc = app.scrape(url, formats=["html", "markdown"], wait_for=5000, timeout=20000, headers=HEADERS_GOOGLEBOT)
 
     final_url = ""
     if doc.metadata:
