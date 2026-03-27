@@ -1,6 +1,11 @@
 import os
+import time
+import logging
 import requests
 from bs4 import BeautifulSoup
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("scraper")
 
 HEADERS_BROWSER = {
     "User-Agent": (
@@ -89,7 +94,10 @@ def _scrape_firecrawl(url):
     from firecrawl import FirecrawlApp
     app = FirecrawlApp(api_key=api_key)
 
-    doc = app.scrape(url, formats=["html", "markdown"], wait_for=10000, timeout=30000, headers=HEADERS_GOOGLEBOT)
+    logger.info(f"Firecrawl: scraping {url}")
+    t0 = time.time()
+    doc = app.scrape(url, formats=["html", "markdown"], wait_for=5000, timeout=15000, headers=HEADERS_GOOGLEBOT)
+    logger.info(f"Firecrawl: {url} completed in {time.time()-t0:.1f}s")
 
     final_url = ""
     if doc.metadata:
@@ -253,21 +261,27 @@ def scrape_url(url, use_firecrawl=True):
         try:
             result = _scrape_firecrawl(url)
             result = {**result, "url": url, "error": None, "method": "firecrawl"}
+            logger.info(f"scrape_url({url}): firecrawl got {result['word_count']} words")
             if result["word_count"] >= MIN_WORDS:
                 return result
             if result["word_count"] > 0:
                 attempts.append(result)
         except Exception as e:
+            logger.warning(f"scrape_url({url}): firecrawl failed: {e}")
             errors.append(f"Firecrawl: {e}")
 
     try:
+        logger.info(f"scrape_url({url}): trying googlebot fallback")
+        t0 = time.time()
         result = _scrape_googlebot(url)
         result = {**result, "url": url, "error": None, "method": "googlebot"}
+        logger.info(f"scrape_url({url}): googlebot got {result['word_count']} words in {time.time()-t0:.1f}s")
         if result["word_count"] >= MIN_WORDS:
             return result
         if result["word_count"] > 0:
             attempts.append(result)
     except Exception as e:
+        logger.warning(f"scrape_url({url}): googlebot failed: {e}")
         errors.append(f"Googlebot: {e}")
 
     best = _best_result(attempts)
