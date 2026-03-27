@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from scraper import scrape_url, parse_html_bytes, firecrawl_available
 from processor import compute_tfidf
 from translator import has_non_english, translate_terms, SUPPORTED_LANGUAGES
+from product_detector import analyze_multiple_pages
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), ".html_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -771,7 +772,7 @@ if "df" in st.session_state:
             return ["background-color: #ffe0e0"] * len(row)
         return [""] * len(row)
 
-    tfidf_sub_tabs = st.tabs(["Full Results", "Gap Analysis", "Chart"])
+    tfidf_sub_tabs = st.tabs(["Full Results", "Gap Analysis", "Chart", "Product Listings"])
 
     with tfidf_sub_tabs[0]:
         for section_label, ng_type in [
@@ -845,3 +846,58 @@ if "df" in st.session_state:
         )
         fig.update_layout(yaxis={"autorange": "reversed"}, height=600, legend_title="")
         st.plotly_chart(fig, width='stretch')
+
+    with tfidf_sub_tabs[3]:
+        st.subheader("Product Listings Detection")
+        st.markdown(
+            "Detects product listings on each page. "
+            "Useful for understanding how competitors structure their product pages."
+        )
+        scraped = st.session_state.get("scraped", [])
+        pages_with_html = []
+        for idx, d in enumerate(scraped):
+            raw = d.get("_raw_html")
+            if raw:
+                label = d.get("url", f"Page {idx}")
+                if idx == 0:
+                    label = f"YOUR PAGE: {label}"
+                else:
+                    label = f"Competitor {idx}: {label}"
+                html_str = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
+                pages_with_html.append({"label": label, "html": html_str})
+
+        if not pages_with_html:
+            st.warning("No HTML data available for product detection. This feature requires scraping from URLs or pasting HTML source.")
+        else:
+            with st.spinner("Detecting product listings…"):
+                results = analyze_multiple_pages(pages_with_html)
+
+            for r in results:
+                page_type = r.get("page_type", "unknown")
+                label = r["label"]
+                products = r.get("products", [])
+                count = r.get("product_count", 0)
+
+                if page_type == "blog":
+                    st.info(f"**{label}** — Blog / Guide page (no product listing detected)")
+                elif page_type == "template":
+                    st.warning(f"**{label}** — Unrendered template (JS-rendered page)")
+                elif page_type == "product_listing" and products:
+                    with st.expander(f"**{label}** — {count} products detected", expanded=False):
+                        st.markdown(f"**Container:** `{r.get('container_tag', '')}` class=`{r.get('container_class', '')}`")
+                        if r.get("structure"):
+                            st.markdown(f"**Structure:** `{r['structure']}`")
+                        if r.get("name_tag"):
+                            st.markdown(f"**Name tag:** `{r['name_tag']}` class=`{r.get('name_class', '')}`")
+
+                        prod_data = []
+                        for p in products:
+                            prod_data.append({
+                                "Product Name": p.get("name", ""),
+                                "Price": p.get("price", ""),
+                                "URL": p.get("url", ""),
+                            })
+                        if prod_data:
+                            st.dataframe(pd.DataFrame(prod_data), width='stretch', height=min(400, len(prod_data) * 35 + 60))
+                else:
+                    st.warning(f"**{label}** — No product listing detected")
