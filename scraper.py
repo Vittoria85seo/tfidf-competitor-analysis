@@ -1,11 +1,6 @@
 import os
-import time
-import logging
 import requests
 from bs4 import BeautifulSoup
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("scraper")
 
 HEADERS_BROWSER = {
     "User-Agent": (
@@ -94,10 +89,7 @@ def _scrape_firecrawl(url):
     from firecrawl import FirecrawlApp
     app = FirecrawlApp(api_key=api_key)
 
-    logger.info(f"Firecrawl: scraping {url}")
-    t0 = time.time()
-    doc = app.scrape(url, formats=["html", "markdown"], wait_for=5000, timeout=15000, headers=HEADERS_GOOGLEBOT)
-    logger.info(f"Firecrawl: {url} completed in {time.time()-t0:.1f}s")
+    doc = app.scrape(url, formats=["html", "markdown"], wait_for=15000, headers=HEADERS_GOOGLEBOT)
 
     final_url = ""
     if doc.metadata:
@@ -150,6 +142,12 @@ def _scrape_firecrawl(url):
     if not parsed:
         raise RuntimeError("Firecrawl returned no content")
 
+    if redirect_warning and parsed["word_count"] < MIN_WORDS:
+        raise RuntimeError(
+            f"{redirect_warning} — only {parsed['word_count']} words found. "
+            "The site may have moved. Try uploading the HTML file or pasting text instead."
+        )
+
     if redirect_warning:
         parsed["redirect_warning"] = redirect_warning
 
@@ -158,8 +156,8 @@ def _scrape_firecrawl(url):
 
 def _scrape_static(url):
     session = requests.Session()
-    session.headers.update(HEADERS_GOOGLEBOT)
-    resp = session.get(url, timeout=10, allow_redirects=True)
+    session.headers.update(HEADERS_BROWSER)
+    resp = session.get(url, timeout=20, allow_redirects=True)
     resp.raise_for_status()
     raw_html = resp.text
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -171,7 +169,7 @@ def _scrape_static(url):
 def _scrape_googlebot(url):
     session = requests.Session()
     session.headers.update(HEADERS_GOOGLEBOT)
-    resp = session.get(url, timeout=10, allow_redirects=True)
+    resp = session.get(url, timeout=20, allow_redirects=True)
     resp.raise_for_status()
     raw_html = resp.text
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -261,28 +259,38 @@ def scrape_url(url, use_firecrawl=True):
         try:
             result = _scrape_firecrawl(url)
             result = {**result, "url": url, "error": None, "method": "firecrawl"}
-            logger.info(f"scrape_url({url}): firecrawl got {result['word_count']} words")
             if result["word_count"] >= MIN_WORDS:
                 return result
-            if result["word_count"] > 0:
-                attempts.append(result)
+            attempts.append(result)
         except Exception as e:
-            logger.warning(f"scrape_url({url}): firecrawl failed: {e}")
             errors.append(f"Firecrawl: {e}")
 
     try:
-        logger.info(f"scrape_url({url}): trying googlebot fallback")
-        t0 = time.time()
         result = _scrape_googlebot(url)
         result = {**result, "url": url, "error": None, "method": "googlebot"}
-        logger.info(f"scrape_url({url}): googlebot got {result['word_count']} words in {time.time()-t0:.1f}s")
         if result["word_count"] >= MIN_WORDS:
             return result
-        if result["word_count"] > 0:
-            attempts.append(result)
+        attempts.append(result)
     except Exception as e:
-        logger.warning(f"scrape_url({url}): googlebot failed: {e}")
         errors.append(f"Googlebot: {e}")
+
+    try:
+        result = _scrape_static(url)
+        result = {**result, "url": url, "error": None, "method": "static"}
+        if result["word_count"] >= MIN_WORDS:
+            return result
+        attempts.append(result)
+    except Exception as e:
+        errors.append(f"Static: {e}")
+
+    try:
+        result = _scrape_playwright(url)
+        result = {**result, "url": url, "error": None, "method": "playwright"}
+        if result["word_count"] >= MIN_WORDS:
+            return result
+        attempts.append(result)
+    except Exception as e:
+        errors.append(f"Playwright: {e}")
 
     best = _best_result(attempts)
     if best:
