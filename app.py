@@ -872,7 +872,7 @@ if "df" in st.session_state:
                 if idx == 0:
                     label = f"YOUR PAGE: {label}"
                 else:
-                    label = f"Competitor {idx}: {label}"
+                    label = f"{idx}: {label}"
                 html_str = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
                 pages_with_html.append({"label": label, "html": html_str})
 
@@ -895,7 +895,7 @@ if "df" in st.session_state:
 
             def _short_page_label(label):
                 import re
-                m = re.match(r"(YOUR PAGE|Competitor \d+): (https?://\S+)", label)
+                m = re.match(r"(YOUR PAGE|\d+): (https?://\S+)", label)
                 if m:
                     return f"{m.group(1)}: {_short_url(m.group(2))}"
                 return label
@@ -920,10 +920,13 @@ if "df" in st.session_state:
 
             def _color_product_row(row):
                 status = str(row.get("Page Type", ""))
+                page = str(row.get("Page", ""))
+                if page.startswith("YOUR PAGE"):
+                    return ["background-color: #ede9fe"] * len(row)
                 if "products" in status:
-                    return ["background-color: #d4edda"] * len(row)
+                    return ["background-color: #f3f0ff"] * len(row)
                 elif status == "Not detected":
-                    return ["background-color: #ffe0e0"] * len(row)
+                    return ["background-color: #fef2f2"] * len(row)
                 return [""] * len(row)
 
             styled_ov = ov_df.style.apply(_color_product_row, axis=1)
