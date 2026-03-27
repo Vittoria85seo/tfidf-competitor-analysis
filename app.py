@@ -1,6 +1,7 @@
 import re
 import os
 import json
+import time
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -420,6 +421,8 @@ if mode == "Scrape from URLs":
             status.text(f"Fetching {label}: {url}")
             scraped.append(scrape_url(url, use_firecrawl=use_firecrawl))
             progress.progress((idx + 1) / len(all_urls))
+            if use_firecrawl and idx < len(all_urls) - 1:
+                time.sleep(2)
         progress.empty()
         status.empty()
 
