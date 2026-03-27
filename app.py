@@ -882,6 +882,19 @@ if "df" in st.session_state:
             with st.spinner("Detecting product listings…"):
                 pl_results = analyze_multiple_pages(pages_with_html)
 
+            def _short_page_label(label):
+                from urllib.parse import urlparse
+                for prefix in ("YOUR PAGE: ", "Competitor "):
+                    if label.startswith(prefix):
+                        tag = prefix.strip().rstrip(":")
+                        rest = label[len(prefix):]
+                        if rest.startswith("http"):
+                            p = urlparse(rest)
+                            path = p.path.rstrip("/")
+                            short = p.netloc + (path if len(path) <= 30 else "/…" + path[-28:])
+                            return f"{tag}: {short}"
+                return label
+
             overview_rows = []
             for r in pl_results:
                 page_type = r.get("page_type", "unknown")
@@ -894,15 +907,17 @@ if "df" in st.session_state:
                 else:
                     status = "Not detected"
                 overview_rows.append({
-                    "Page": r["label"],
+                    "Page": _short_page_label(r["label"]),
                     "Page Type": status,
                     "Structure": r.get("structure", ""),
                 })
-            st.dataframe(pd.DataFrame(overview_rows), width='stretch')
+            ov_df = pd.DataFrame(overview_rows)
+            st.dataframe(ov_df, width='stretch', hide_index=True, height=min(420, len(ov_df) * 35 + 60))
 
             for r in pl_results:
                 if r.get("product_count", 0) > 0 and r.get("products"):
-                    with st.expander(f"{r['label']} — {r['product_count']} products in {r.get('container_tag', '')}"):
+                    short = _short_page_label(r["label"])
+                    with st.expander(f"{short} — {r['product_count']} products"):
                         prod_rows = []
                         for p in r["products"]:
                             prod_rows.append({
@@ -911,7 +926,7 @@ if "df" in st.session_state:
                                 "Image Alt Text": p["img_alt"],
                                 "URL": p["url"],
                             })
-                        st.dataframe(pd.DataFrame(prod_rows), width='stretch', height=min(400, len(prod_rows) * 35 + 60))
+                        st.dataframe(pd.DataFrame(prod_rows), width='stretch', hide_index=True, height=min(400, len(prod_rows) * 35 + 60))
 
             all_products = []
             for r in pl_results:
